@@ -5,3 +5,5 @@
 # *.[oa]
 *~
 target/
+pom.xml
+.svn/
