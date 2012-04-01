@@ -5,7 +5,7 @@ libraryDependencies <+= scalaVersion { "org.scala-lang" % "scala-compiler" % _ }
 libraryDependencies <+= scalaVersion { "org.scala-lang" % "jline" % _ }
 
 libraryDependencies <+= scalaVersion { sv =>
-  "com.dongxiguo" % ("zero-log_" + sv) % "0.1.2-SNAPSHOT"
+  "com.dongxiguo" % ("zero-log_" + sv) % "0.1.1"
 }
 
 libraryDependencies += "org.bouncycastle" % "bcprov-jdk16" % "1.46"
