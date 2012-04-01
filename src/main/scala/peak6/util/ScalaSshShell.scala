@@ -16,7 +16,6 @@
 
 package peak6.util
 
-import com.weiglewilczek.slf4s.Logging
 import java.io.{BufferedReader, InputStreamReader, PrintWriter}
 import org.apache.sshd.server.session.ServerSession
 import org.apache.sshd.common.keyprovider.AbstractKeyPairProvider
@@ -27,6 +26,9 @@ import scala.concurrent.ops.spawn
 class ScalaSshShell(port: Int, name:
                     String, user: String, passwd: String,
                     keysResourcePath: Option[String]) {
+  import ScalaSshShell.logger
+  import ScalaSshShell.formatter._
+
   var bindings: Seq[(String, String, Any)] = IndexedSeq()
 
   def bind[T: Manifest](name: String, value: T) {
@@ -72,7 +74,7 @@ class ScalaSshShell(port: Int, name:
   sshd.setShellFactory(
     new org.apache.sshd.common.Factory[org.apache.sshd.server.Command] {
       def create() =
-        new org.apache.sshd.server.Command with Logging {
+        new org.apache.sshd.server.Command {
           logger.info("Instantiated")
           var in: java.io.InputStream = null
           var out: java.io.OutputStream = null
@@ -134,7 +136,7 @@ class ScalaSshShell(port: Int, name:
                 new scala.tools.nsc.interpreter.JLineCompletion(il.intp))
 
               if (il.intp.reporter.hasErrors) {
-                logger.error("Got errors, abandoning connection")
+                logger.severe("Got errors, abandoning connection")
                 return
               }
 
@@ -179,6 +181,8 @@ class ScalaSshShell(port: Int, name:
 }
 
 object ScalaSshShell {
+  val (logger, formatter) = ZeroLoggerFactory.newLogger(this)
+
   def main(args: Array[String]) {
     val sshd = new ScalaSshShell(port=4444, name="test", user="user",
                                  passwd="fluke",

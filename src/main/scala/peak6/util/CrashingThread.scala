@@ -17,6 +17,8 @@
 package peak6.util
 
 object CrashingThread {
+  val (logger, formatter) = ZeroLoggerFactory.newLogger(this)
+
   def start(name: Option[String] = None,
             daemon: Boolean = false)(target: => Unit): CrashingThread = {
     val th = new CrashingThread(name, target)
@@ -27,7 +29,10 @@ object CrashingThread {
 }
 
 class CrashingThread(name: Option[String], target: => Unit)
-extends Thread() with com.weiglewilczek.slf4s.Logging {
+extends Thread() {
+  import CrashingThread.logger
+  import CrashingThread.formatter._
+
   final override def run() {
     name foreach { setName(_) }
     try
@@ -36,11 +41,11 @@ extends Thread() with com.weiglewilczek.slf4s.Logging {
       case e: Exception =>
 	val stack = e.getStackTrace.foldLeft (new StringBuilder()) {
 	  (sb, f) =>
-	    sb.append("  ")
-	    sb.append(f toString)
+	    sb.++=("  ")
+	    sb.++=(f toString)
             sb += '\n'
 	}.toString
-        logger.error("Unhandled exception:\n" + e.toString + "\n" + stack)
+        logger.severe("Unhandled exception:\n" + e.toString + "\n" + stack)
         System.exit(1)
     }
   }

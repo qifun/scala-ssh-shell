@@ -4,9 +4,9 @@ libraryDependencies <+= scalaVersion { "org.scala-lang" % "scala-compiler" % _ }
 
 libraryDependencies <+= scalaVersion { "org.scala-lang" % "jline" % _ }
 
-libraryDependencies += "com.weiglewilczek.slf4s" %% "slf4s" % "1.0.7"
-
-libraryDependencies += "org.slf4j" % "slf4j-api" % "1.6.4"
+libraryDependencies <+= scalaVersion { sv =>
+  "com.dongxiguo" % ("zero-log_" + sv) % "0.1.2-SNAPSHOT"
+}
 
 libraryDependencies += "org.bouncycastle" % "bcprov-jdk16" % "1.46"
 
