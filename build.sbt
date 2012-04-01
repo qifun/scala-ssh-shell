@@ -1,16 +1,30 @@
 name := "scala-ssh-shell"
 
-libraryDependencies <+= scalaVersion { "org.scala-lang" % "scala-compiler" % _ }
+organization := "scala-ssh-shell"
 
-libraryDependencies <+= scalaVersion { "org.scala-lang" % "jline" % _ }
+version := "0.0.1-SNAPSHOT"
 
 libraryDependencies <+= scalaVersion { sv =>
   "com.dongxiguo" % ("zero-log_" + sv) % "0.1.1"
 }
 
-libraryDependencies += "org.bouncycastle" % "bcprov-jdk16" % "1.46"
+crossScalaVersions :=
+  Seq("2.9.1", "2.9.1-1",
+      "2.10.0-M1", "2.10.0-M2")
 
-libraryDependencies += "org.apache.sshd" % "sshd-core" % "0.6.0"
+scalacOptions ++= Vector("-unchecked", "-deprecation", "-Ywarn-all")
+
+javacOptions ++= Vector("-encoding", "UTF-8")
+
+retrieveManaged := true
+
+libraryDependencies <++= (scalaVersion) {
+	(scala) => Seq(
+	"org.scala-lang" % "scala-compiler" % scala,
+	"org.scala-lang" % "jline" % scala,
+	"org.bouncycastle" % "bcprov-jdk16" % "1.46",
+	"org.apache.sshd" % "sshd-core" % "0.6.0"
+	)}
 
 pomExtra <<= scalaVersion { sv =>
   <properties>

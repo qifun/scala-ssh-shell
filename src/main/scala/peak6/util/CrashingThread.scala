@@ -38,7 +38,7 @@ extends Thread() {
     try
       target
     catch {
-      case e: Exception =>
+      case e: Throwable =>
 	val stack = e.getStackTrace.foldLeft (new StringBuilder()) {
 	  (sb, f) =>
 	    sb.++=("  ")
