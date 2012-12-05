@@ -23,10 +23,35 @@ import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
 import scala.reflect.Manifest
 import scala.concurrent.ops.spawn
 
+object ScalaSshShell {
+  implicit val (logger, formatter, appender) = ZeroLoggerFactory.newLogger(this)
+
+  def main(args: Array[String]) {
+    val sshd = new ScalaSshShell(port = 4444, name = "test", user = "user",
+      passwd = "fluke",
+      keysResourcePath = Some("/test.ssh.keys"))
+    sshd.bind("pi", 3.1415926)
+    sshd.bind("nums", Vector(1, 2, 3, 4, 5))
+    new Thread {
+      override final def run() {
+        sshd.start()
+      }
+    }.start()
+    new java.util.Scanner(System.in) nextLine ()
+    sshd.stop()
+  }
+
+  def generateKeys(path: String) {
+    val key = new SimpleGeneratorHostKeyProvider(path)
+    key.loadKeys()
+  }
+}
+
 class ScalaSshShell(port: Int, name: String, user: String, passwd: String,
   keysResourcePath: Option[String]) {
   import ScalaSshShell.logger
-  import ScalaSshShell.formatter._
+  import ScalaSshShell.formatter
+  import ScalaSshShell.appender
 
   var bindings: Seq[(String, String, Any)] = IndexedSeq()
 
@@ -176,29 +201,5 @@ class ScalaSshShell(port: Int, name: String, user: String, passwd: String,
 
   def stop() {
     sshd.stop()
-  }
-}
-
-object ScalaSshShell {
-  implicit val (logger, formatter, appender) = ZeroLoggerFactory.newLogger(this)
-
-  def main(args: Array[String]) {
-    val sshd = new ScalaSshShell(port = 4444, name = "test", user = "user",
-      passwd = "fluke",
-      keysResourcePath = Some("/test.ssh.keys"))
-    sshd.bind("pi", 3.1415926)
-    sshd.bind("nums", Vector(1, 2, 3, 4, 5))
-    new Thread {
-      override final def run() {
-        sshd.start()
-      }
-    }.start()
-    new java.util.Scanner(System.in) nextLine ()
-    sshd.stop()
-  }
-
-  def generateKeys(path: String) {
-    val key = new SimpleGeneratorHostKeyProvider(path)
-    key.loadKeys()
   }
 }
