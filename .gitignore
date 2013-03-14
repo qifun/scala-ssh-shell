@@ -8,5 +8,4 @@ lib_managed/
 target/
 pom.xml
 nbactions.xml
-.svn/
-/.settings/
+.*
