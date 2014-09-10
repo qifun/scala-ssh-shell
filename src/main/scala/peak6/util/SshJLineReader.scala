@@ -24,9 +24,9 @@ import java.io.OutputStream
 /**
  *  Reads from the console using JLine.
  */
-class JLineIOReader(
-  in: InputStream,
-  out: OutputStream,
+class SshJLineReader(
+  in: InputStream, 
+  out: OutputStream, 
   _completion: => Completion)
 extends InteractiveReader {
   val interactive = true
@@ -91,13 +91,13 @@ extends InteractiveReader {
   def readOneKey(prompt: String) = consoleReader readOneKey prompt
 }
 
-object JLineIOReader {
-  def apply(intp: IMain,
-            in: java.io.InputStream,
-            out: java.io.OutputStream): JLineIOReader =
+object SshJLineReader {
+  def apply(intp: IMain, 
+            in: java.io.InputStream, 
+            out: java.io.OutputStream): SshJLineReader =
               apply(new JLineCompletion(intp), in, out)
-  def apply(comp: Completion,
-            in: java.io.InputStream,
-            out: java.io.OutputStream): JLineIOReader =
-              new JLineIOReader(in, out, comp)
+  def apply(comp: Completion, 
+            in: java.io.InputStream, 
+            out: java.io.OutputStream): SshJLineReader =
+              new SshJLineReader(in, out, comp)
 }

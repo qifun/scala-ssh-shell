@@ -30,7 +30,7 @@ final class SshILoop(inputStream: InputStream, outputStream: OutputStream, bindV
     new PrintWriter(new OutputStreamWriter(outputStream, Charsets.UTF_8))) {
 
   override final def chooseReader(settings: Settings): InteractiveReader = {
-    new JLineIOReader(inputStream, outputStream, new JLineCompletion(intp))
+    new SshJLineReader(inputStream, outputStream, new JLineCompletion(intp))
   }
 
   override final def createInterpreter(): Unit = {
@@ -40,7 +40,7 @@ final class SshILoop(inputStream: InputStream, outputStream: OutputStream, bindV
       override final def initializeSynchronous(): Unit = {
         super.initializeSynchronous()
         bindValues.foreach(intp.quietBind)
-        in.asInstanceOf[JLineIOReader].consoleReader.postInit
+        in.asInstanceOf[SshJLineReader].consoleReader.postInit
       }
     }
   }
