@@ -21,7 +21,17 @@ import org.apache.sshd.server.session.ServerSession
 import org.apache.sshd.common.keyprovider.AbstractKeyPairProvider
 import org.apache.sshd.server.keyprovider.SimpleGeneratorHostKeyProvider
 import scala.reflect.Manifest
-import scala.concurrent.ops.spawn
+import scala.tools.nsc.interpreter.NamedParam
+import scala.tools.nsc.interpreter.ILoop
+import org.apache.sshd.server.CommandFactory
+import org.apache.sshd.common.Factory
+import org.apache.sshd.server.Command
+import org.apache.sshd.server.Environment
+import scala.tools.nsc.Settings
+import java.net.URLClassLoader
+import java.io.File
+import org.apache.commons.codec.Charsets
+import java.io.ByteArrayInputStream
 
 object ScalaSshShell {
   implicit val (logger, formatter, appender) = ZeroLoggerFactory.newLogger(this)
@@ -94,105 +104,72 @@ class ScalaSshShell(port: Int, name: String, user: String, passwd: String,
     else
       new SimpleGeneratorHostKeyProvider())
 
-  sshd.setShellFactory(
-    new org.apache.sshd.common.Factory[org.apache.sshd.server.Command] {
-      def create() =
-        new org.apache.sshd.server.Command {
-          logger.info("Instantiated")
-          var in: java.io.InputStream = null
-          var out: java.io.OutputStream = null
-          var err: java.io.OutputStream = null
-          var exit: org.apache.sshd.server.ExitCallback = null
-          var thread: Thread = null
-          @volatile var inShutdown = false
+  def boundValues = Seq()
 
-          def setInputStream(in: java.io.InputStream) { this.in = in }
+  sshd.setCommandFactory(
+    new CommandFactory {
+      override def createCommand(command: String) = new DefaultCommand {
 
-          def setOutputStream(out: java.io.OutputStream) {
-            this.out = new java.io.OutputStream {
-              override def close() { out.close() }
-              override def flush() { out.flush() }
+        override final def destroy() {}
 
-              override def write(b: Int) {
-                if (b.toChar == '\n')
-                  out.write('\r')
-                out.write(b)
-              }
-
-              override def write(b: Array[Byte]) {
-                var i = 0
-                while (i < b.size) {
-                  write(b(i))
-                  i += 1
-                }
-              }
-
-              override def write(b: Array[Byte], off: Int, len: Int) {
-                write(b.slice(off, off + len))
-              }
-            }
-          }
-
-          def setErrorStream(err: java.io.OutputStream) { this.err = err }
-
-          def setExitCallback(exit: org.apache.sshd.server.ExitCallback) {
-            this.exit = exit
-          }
-
-          def start(env: org.apache.sshd.server.Environment) {
-            thread = CrashingThread.start(Some("ScalaSshShell-" + name)) {
-              val pw = new PrintWriter(out)
-              logger.info("New ssh client connected")
-              pw.write("Connected to %s, starting repl...\n".format(name))
-              pw.flush()
-
-              val il = new scala.tools.nsc.interpreter.SshILoop(None, pw)
-              il.setPrompt(name + "> ")
-              il.settings = new scala.tools.nsc.Settings()
-              il.settings.embeddedDefaults(getClass.getClassLoader)
-              il.settings.usejavacp.value = true
-              il.settings.Yreplsync.value = true
-              il.createInterpreter()
-
-              il.in = new scala.tools.nsc.interpreter.JLineIOReader(
-                in,
-                out,
-                new scala.tools.nsc.interpreter.JLineCompletion(il.intp))
-
-              if (il.intp.reporter.hasErrors) {
-                logger.severe("Got errors, abandoning connection")
-                return
-              }
-
-              il.printWelcome()
+        override final def start(env: Environment) {
+          new Thread {
+            override final def run() {
+              val commandStream = new ByteArrayInputStream(command.getBytes(Charsets.UTF_8))
+              val repl: ILoop = new SshILoop(commandStream, outputStream, boundValues: _*)
               try {
-                il.intp.initialize()
-                il.intp.beQuietDuring {
-                  il.intp.bind("stdout", pw)
-                  for ((bname, btype, bval) <- bindings)
-                    il.bind(bname, btype, bval)
+                val settings = new Settings
+                settings.Yreplsync.value = true
+                val currentClassLoader = classOf[ScalaSshShell].getClassLoader.asInstanceOf[URLClassLoader]
+                for (url <- currentClassLoader.getURLs) {
+                  settings.bootclasspath.append(new File(url.toURI).getPath)
                 }
-                il.intp.quietRun(
-                  """def println(a: Any) = {
-                       stdout.write(a.toString)
-                       stdout.write('\n')
-                     }""")
-                il.intp.quietRun(
-                  """def exit = println("Use ctrl-D to exit shell.")""")
-
-                il.loop()
-              } finally il.closeInterpreter()
-
-              logger.info("Exited repl, closing ssh.")
-              pw.write("Bye.\r\n")
-              pw.flush()
-              exit.onExit(0)
+                settings.embeddedDefaults(currentClassLoader)
+                repl.process(settings)
+                exitCallback.onExit(0)
+              } catch {
+                case e: Throwable =>
+                  exitCallback.onExit(1, e.getMessage)
+              } finally {
+                repl.closeInterpreter()
+              }
             }
-          }
-          def destroy() {
-            inShutdown = true
-          }
+          }.start()
         }
+      }
+
+    })
+
+  sshd.setShellFactory(
+    new Factory[Command] {
+      override final def create = new DefaultCommand {
+
+        override final def destroy() {}
+
+        override final def start(env: Environment) {
+          new Thread {
+            override final def run() {
+              val repl: ILoop = new SshILoop(inputStream, outputStream, boundValues: _*)
+              try {
+                val settings = new Settings
+                settings.Yreplsync.value = true
+                val currentClassLoader = classOf[ScalaSshShell].getClassLoader.asInstanceOf[URLClassLoader]
+                for (url <- currentClassLoader.getURLs) {
+                  settings.bootclasspath.append(new File(url.toURI).getPath)
+                }
+                settings.embeddedDefaults(currentClassLoader)
+                repl.process(settings)
+                exitCallback.onExit(0)
+              } catch {
+                case e: Throwable =>
+                  exitCallback.onExit(1, e.getMessage)
+              } finally {
+                repl.closeInterpreter()
+              }
+            }
+          }.start()
+        }
+      }
     })
 
   def start() {

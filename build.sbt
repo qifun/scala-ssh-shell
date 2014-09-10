@@ -6,21 +6,23 @@ version := "0.0.1-SNAPSHOT"
 
 compileOrder := CompileOrder.JavaThenScala
 
+libraryDependencies += "commons-codec" % "commons-codec" % "1.9"
+
 libraryDependencies <+= scalaVersion { sv =>
-  "com.dongxiguo" %% "zero-log" % "0.3.2"
+  "com.dongxiguo" %% "zero-log" % "0.3.6"
 }
 
-crossScalaVersions :=
-  Seq("2.10.1", "2.10.1-SNAPSHOT")
+crossScalaVersions := Seq("2.11.2")
 
-scalacOptions ++= Vector("-unchecked", "-deprecation", "-Ywarn-all")
+scalacOptions ++= Vector("-unchecked", "-deprecation")
 
 javacOptions ++= Vector("-encoding", "UTF-8")
+
+libraryDependencies += "jline" % "jline" % "2.12"
 
 libraryDependencies <++= (scalaVersion) {
 	(scala) => Seq(
 	"org.scala-lang" % "scala-compiler" % scala,
-	"org.scala-lang" % "jline" % scala,
 	"org.bouncycastle" % "bcprov-jdk16" % "1.46",
 	"org.apache.sshd" % "sshd-core" % "0.8.0",
 	"org.slf4j" % "slf4j-api" % "1.6.4"
