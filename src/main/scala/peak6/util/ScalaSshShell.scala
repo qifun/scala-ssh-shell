@@ -104,73 +104,20 @@ class ScalaSshShell(port: Int, name: String, user: String, passwd: String,
     else
       new SimpleGeneratorHostKeyProvider())
 
-  def boundValues = Seq()
+  val settings = { () =>
+    val settings = new Settings
+    settings.Yreplsync.value = true
+    val currentClassLoader = classOf[ScalaSshShell].getClassLoader.asInstanceOf[URLClassLoader]
+    for (url <- currentClassLoader.getURLs) {
+      settings.bootclasspath.append(new File(url.toURI).getPath)
+    }
+    settings.embeddedDefaults(currentClassLoader)
+    settings
+  }
 
-  sshd.setCommandFactory(
-    new CommandFactory {
-      override def createCommand(command: String) = new DefaultCommand {
-
-        override final def destroy() {}
-
-        override final def start(env: Environment) {
-          new Thread {
-            override final def run() {
-              val commandStream = new ByteArrayInputStream(command.getBytes(Charsets.UTF_8))
-              val repl: ILoop = new SshILoop(commandStream, outputStream, boundValues: _*)
-              try {
-                val settings = new Settings
-                settings.Yreplsync.value = true
-                val currentClassLoader = classOf[ScalaSshShell].getClassLoader.asInstanceOf[URLClassLoader]
-                for (url <- currentClassLoader.getURLs) {
-                  settings.bootclasspath.append(new File(url.toURI).getPath)
-                }
-                settings.embeddedDefaults(currentClassLoader)
-                repl.process(settings)
-                exitCallback.onExit(0)
-              } catch {
-                case e: Throwable =>
-                  exitCallback.onExit(1, e.getMessage)
-              } finally {
-                repl.closeInterpreter()
-              }
-            }
-          }.start()
-        }
-      }
-
-    })
-
-  sshd.setShellFactory(
-    new Factory[Command] {
-      override final def create = new DefaultCommand {
-
-        override final def destroy() {}
-
-        override final def start(env: Environment) {
-          new Thread {
-            override final def run() {
-              val repl: ILoop = new SshILoop(inputStream, outputStream, boundValues: _*)
-              try {
-                val settings = new Settings
-                settings.Yreplsync.value = true
-                val currentClassLoader = classOf[ScalaSshShell].getClassLoader.asInstanceOf[URLClassLoader]
-                for (url <- currentClassLoader.getURLs) {
-                  settings.bootclasspath.append(new File(url.toURI).getPath)
-                }
-                settings.embeddedDefaults(currentClassLoader)
-                repl.process(settings)
-                exitCallback.onExit(0)
-              } catch {
-                case e: Throwable =>
-                  exitCallback.onExit(1, e.getMessage)
-              } finally {
-                repl.closeInterpreter()
-              }
-            }
-          }.start()
-        }
-      }
-    })
+  val boundValues = Seq()
+  sshd.setCommandFactory(new ReplCommandFactory(settings, boundValues: _*))
+  sshd.setShellFactory(new ReplShellFactory(settings, boundValues: _*))
 
   def start() {
     sshd.start()
